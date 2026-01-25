@@ -1,0 +1,19 @@
+{
+  "name": "project-root",
+  "version": "1.0.0",
+  "description": "eLibrary is a digital platform designed to manage and access a wide variety of books and learning materials. The project aims to provide users with a simple, intuitive interface for browsing, searching, and organizing digital content efficiently. This platform will serve as a convenient tool for students and book enthusiasts alike.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "mongodb": "^7.0.0",
+    "sqlite3": "^5.1.7"
+  }
+}
