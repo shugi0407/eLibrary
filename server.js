@@ -39,6 +39,46 @@ app.get('/contact', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'contact.html'));
 });
 
+app.get('/sign-in', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'sign-in.html'));
+});
+
+
+const { getUsersCollection } = require('./database/mongo');
+const bcrypt = require('bcrypt'); 
+
+// POST /api/sign-in
+app.post('/api/sign-in', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const collection = getUsersCollection();
+    const user = await collection.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ error: "Invalid credentials" });
+
+    res.status(200).json({
+      message: "Sign-in successful",
+      user: {
+        _id: user._id,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 
 
 
@@ -166,7 +206,7 @@ app.get('/api/books/:id', async (req, res) => {
 // POST create book
 app.post('/api/books', async (req, res) => {
   try {
-    const { title, author, description } = req.body;
+    const { title, author, description, year, genre } = req.body; 
 
     if (!title || !author) {
       return res.status(400).json({
@@ -179,16 +219,21 @@ app.post('/api/books', async (req, res) => {
     const result = await collection.insertOne({
       title,
       author,
-      description: description || ''
+      description: description || '',
+      year: year ? parseInt(year) : null,  
+      genre: genre || ''                 
     });
 
     res.status(201).json({
       _id: result.insertedId,
       title,
       author,
-      description: description || ''
+      description: description || '',
+      year: year ? parseInt(year) : null,
+      genre: genre || ''
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -197,7 +242,7 @@ app.post('/api/books', async (req, res) => {
 app.put('/api/books/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, author, description } = req.body;
+    const { title, author, description, year, genre } = req.body; 
 
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid id' });
@@ -214,7 +259,13 @@ app.put('/api/books/:id', async (req, res) => {
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       {
-        $set: { title, author, description }
+        $set: {
+          title,
+          author,
+          description: description || '',
+          year: year ? parseInt(year) : null, 
+          genre: genre || ''                  
+        }
       }
     );
 
@@ -224,6 +275,7 @@ app.put('/api/books/:id', async (req, res) => {
 
     res.status(200).json({ message: 'Book updated successfully' });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
 });

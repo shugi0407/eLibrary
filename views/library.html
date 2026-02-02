@@ -27,12 +27,14 @@
 </section>
 
 <section class="library-controls">
+  <div class="filter-sort-row">
   <input type="text" id="filter-author" placeholder="Filter by author">
   <select id="sort-by">
     <option value="">Sort by</option>
     <option value="title">Title</option>
     <option value="author">Author</option>
   </select>
+  </div>
 
 <div class="projection-controls">
   <p>Show only fields:</p>
@@ -42,6 +44,12 @@
 
   <input type="checkbox" id="field-author" value="author" class="field-checkbox" checked>
   <label for="field-author">Author</label>
+
+  <input type="checkbox" id="field-year" value="year" class="field-checkbox" checked>
+  <label for="field-year">Year</label>
+
+  <input type="checkbox" id="field-genre" value="genre" class="field-checkbox" checked>
+  <label for="field-genre">Genre</label>
 
   <input type="checkbox" id="field-description" value="description" class="field-checkbox" checked>
   <label for="field-description">Description</label>
@@ -64,6 +72,8 @@
 
     <input type="text" id="book-title" placeholder="Book title" required>
     <input type="text" id="book-author" placeholder="Author" required>
+    <input type="number" id="book-year" placeholder="Year of publication" required>
+    <input type="text" id="book-genre" placeholder="Genre" required>
     <input type="text" id="book-description" placeholder="Description" required>
 
     <div class="form-buttons">

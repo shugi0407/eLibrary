@@ -45,18 +45,21 @@ function renderBooks(books) {
   }
 
   booksContainer.innerHTML = books
-    .map(book => `
-      <div class="book-card">
-        ${book.title ? `<h3>${book.title}</h3>` : ''}
-        ${book.author ? `<p class="author">Author: ${book.author}</p>` : ''}
-        ${book.description ? `<p class="description">${book.description}</p>` : ''}
+  .map(book => `
+    <div class="book-card">
+      ${book.title ? `<h3>${book.title}</h3>` : ''}
+      ${book.author ? `<p class="author">Author: ${book.author}</p>` : ''}
+      ${book.year ? `<p class="year">Year: ${book.year}</p>` : ''}
+      ${book.genre ? `<p class="genre">Genre: ${book.genre}</p>` : ''}
+      ${book.description ? `<p class="description">${book.description}</p>` : ''}
 
-        <button class="edit-btn" data-id="${book._id}">
-          Edit
-        </button>
-      </div>
-    `)
-    .join('');
+      <button class="edit-btn" data-id="${book._id}">
+        Edit
+      </button>
+    </div>
+  `)
+  .join('');
+
 
   // add listeners after render
   addEditListeners();
@@ -84,6 +87,8 @@ function fillForm(book) {
   bookIdInput.value = book._id || '';
   titleInput.value = book.title || '';
   authorInput.value = book.author || '';
+  yearInput.value = book.year || '';
+  genreInput.value = book.genre || '';
   descriptionInput.value = book.description || '';
 }
 
@@ -123,6 +128,8 @@ const form = document.getElementById('book-form');
 const bookIdInput = document.getElementById('book-id');
 const titleInput = document.getElementById('book-title');
 const authorInput = document.getElementById('book-author');
+const yearInput = document.getElementById('book-year');
+const genreInput = document.getElementById('book-genre');
 const descriptionInput = document.getElementById('book-description');
 const deleteBtn = document.getElementById('delete-book');
 
@@ -133,10 +140,13 @@ form.addEventListener('submit', async (e) => {
   const id = bookIdInput.value;
 
   const bookData = {
-    title: titleInput.value,
-    author: authorInput.value,
-    description: descriptionInput.value
-  };
+  title: titleInput.value,
+  author: authorInput.value,
+  description: descriptionInput.value,
+  year: parseInt(yearInput.value),
+  genre: genreInput.value
+};
+
 
   if (id) {
     // update existing book

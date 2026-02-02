@@ -560,7 +560,7 @@ footer {
   margin-bottom: 10px;
 }
 
-.book-card .description {
+.book-card .description, .year, .genre {
   font-size: 14px;
   color: #555;
   line-height: 1.5;
@@ -626,6 +626,20 @@ footer {
   font-size: 14px;
 }
 
+.filter-sort-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap; 
+  align-items: center;
+}
+
+.projection-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+}
 
 .library-controls button {
   padding: 10px 20px;
@@ -817,4 +831,86 @@ footer {
 /* hover effect */
 .projection-controls label:hover::before {
   box-shadow: 0 0 6px rgba(31,79,216,0.4);
+}
+
+
+
+/* SIGN IN PAGE */
+.sign-in {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 80px 20px;
+  background: #f4f6f8;
+  min-height: calc(100vh - 140px); /* учитываем header + footer */
+}
+
+.sign-in-container {
+  background: #fff;
+  padding: 40px 32px;
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.sign-in-container h2 {
+  color: #1f4fd8;
+  margin-bottom: 12px;
+  font-size: 28px;
+}
+
+.sign-in-container p {
+  color: #666;
+  font-size: 15px;
+  margin-bottom: 24px;
+}
+
+.sign-in-form .form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.sign-in-form label {
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #444;
+  text-align: left;
+}
+
+.sign-in-form input {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.sign-in-form input:focus {
+  outline: none;
+  border-color: #1f4fd8;
+  box-shadow: 0 0 5px rgba(31,79,216,0.4);
+}
+
+.sign-in-form .submit-btn {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.sign-in-form .sign-up-text {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #666;
+}
+
+.sign-in-form .sign-up-text a {
+  color: #1f4fd8;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.sign-in-form .sign-up-text a:hover {
+  text-decoration: underline;
 }
