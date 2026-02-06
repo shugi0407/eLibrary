@@ -2,8 +2,10 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { ObjectId } = require('mongodb');
-const { connectDB, getBooksCollection } = require('./database/mongo');
-
+const { connectDB, getBooksCollection, getUsersCollection } = require('./database/mongo');
+const bcrypt = require('bcrypt');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,14 +14,41 @@ const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// Session middleware - MUST be before routes
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/elibrary',
+    touchAfter: 24 * 3600 // lazy session update (24 hours)
+  }),
+  cookie: {
+    httpOnly: true, // Required: prevents client-side JS from accessing cookies
+    secure: process.env.NODE_ENV === 'production', // Recommended: use HTTPS in production
+    maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
+  }
+}));
+
 // Custom logger middleware
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
+  console.log(`${req.method} ${req.url} - User: ${req.session.userId || 'Guest'}`);
   next();
 });
 
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
+
+// AUTHENTICATION MIDDLEWARE
+function requireAuth(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ 
+      error: 'Unauthorized',
+      message: 'You must be logged in to perform this action' 
+    });
+  }
+  next();
+}
 
 // HTML ROUTES 
 app.get('/', (req, res) => {
@@ -29,7 +58,6 @@ app.get('/', (req, res) => {
 app.get('/library', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'library.html'));
 });
-
 
 app.get('/about', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'team.html'));
@@ -43,85 +71,111 @@ app.get('/sign-in', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'sign-in.html'));
 });
 
+// AUTH API ROUTES
 
-const { getUsersCollection } = require('./database/mongo');
-const bcrypt = require('bcrypt'); 
-
-// POST /api/sign-in
+// POST /api/sign-in - Creates session
 app.post('/api/sign-in', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Validation
     if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
+      return res.status(400).json({ error: "Invalid credentials" });
     }
 
     const collection = getUsersCollection();
     const user = await collection.findOne({ email });
 
+    // Generic error message for security
     if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ error: "Invalid credentials" });
+    if (!match) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Create session
+    req.session.userId = user._id.toString();
+    req.session.email = user.email;
 
     res.status(200).json({
       message: "Sign-in successful",
       user: {
-        _id: user._id,
         email: user.email
       }
     });
   } catch (error) {
-    console.error(error);
+    console.error('Sign-in error:', error);
     res.status(500).json({ error: "Server error" });
   }
 });
 
+// POST /api/sign-out - Destroys session
+app.post('/api/sign-out', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to sign out' });
+    }
+    res.clearCookie('connect.sid'); // Clear session cookie
+    res.status(200).json({ message: 'Signed out successfully' });
+  });
+});
 
+// GET /api/auth/status - Check if user is authenticated
+app.get('/api/auth/status', (req, res) => {
+  if (req.session.userId) {
+    res.status(200).json({ 
+      authenticated: true,
+      email: req.session.email 
+    });
+  } else {
+    res.status(200).json({ authenticated: false });
+  }
+});
 
-
+// SEARCH ROUTE
 app.get('/search', (req, res) => {
   const query = req.query.q;
 
   if (!query) {
     return res.status(400).send(`
       <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <title>Error 400</title>
-            <link rel="stylesheet" href="/style.css">
-          </head>
-          <body>
-            <div class="container">
-              <h2>Error 400</h2>
-              <p>Missing required query parameter <strong>"q"</strong>.</p>
-              <a href="/" class="btn">Go back</a>
-            </div>
-          </body>
-          </html>
-          `);
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>Error 400</title>
+        <link rel="stylesheet" href="/style.css">
+      </head>
+      <body>
+        <div class="container">
+          <h2>Error 400</h2>
+          <p>Missing required query parameter <strong>"q"</strong>.</p>
+          <a href="/" class="btn">Go back</a>
+        </div>
+      </body>
+      </html>
+    `);
   }
 
   res.send(`
     <!DOCTYPE html>
-      <html lang="en">
-      <head>
-         <meta charset="UTF-8">
-         <title>Search Results</title>
-         <link rel="stylesheet" href="/style.css">
-      </head>
-      <body>
-        <div class="container">
-          <h2>Search Results</h2>
-          <p>You searched for: <strong>${query}</strong></p>
-          <a href="/" class="btn">New search</a>
-        </div>
-      </body>
-      </html>
-      `);
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Search Results</title>
+      <link rel="stylesheet" href="/style.css">
+    </head>
+    <body>
+      <div class="container">
+        <h2>Search Results</h2>
+        <p>You searched for: <strong>${query}</strong></p>
+        <a href="/" class="btn">New search</a>
+      </div>
+    </body>
+    </html>
+  `);
 });
 
 // API INFO 
@@ -132,16 +186,16 @@ app.get('/api/info', (req, res) => {
     endpoints: {
       getAll: 'GET /api/books',
       getById: 'GET /api/books/:id',
-      create: 'POST /api/books',
-      update: 'PUT /api/books/:id',
-      delete: 'DELETE /api/books/:id'
+      create: 'POST /api/books (requires auth)',
+      update: 'PUT /api/books/:id (requires auth)',
+      delete: 'DELETE /api/books/:id (requires auth)'
     }
   });
 });
 
 // API ROUTES (CRUD)
 
-// GET all books (filtering, sorting, projection)
+// GET all books (filtering, sorting, projection) - PUBLIC
 app.get('/api/books', async (req, res) => {
   try {
     const collection = getBooksCollection();
@@ -180,8 +234,7 @@ app.get('/api/books', async (req, res) => {
   }
 });
 
-
-// GET book by id
+// GET book by id - PUBLIC
 app.get('/api/books/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -203,14 +256,15 @@ app.get('/api/books/:id', async (req, res) => {
   }
 });
 
-// POST create book
-app.post('/api/books', async (req, res) => {
+// POST create book - PROTECTED
+app.post('/api/books', requireAuth, async (req, res) => {
   try {
-    const { title, author, description, year, genre } = req.body; 
+    const { title, author, description, year, genre, isbn, publisher, language } = req.body;
 
-    if (!title || !author) {
+    // Validation
+    if (!title || !author || !genre || !year) {
       return res.status(400).json({
-        error: 'Title and author are required'
+        error: 'Title, author, genre, and year are required'
       });
     }
 
@@ -220,8 +274,11 @@ app.post('/api/books', async (req, res) => {
       title,
       author,
       description: description || '',
-      year: year ? parseInt(year) : null,  
-      genre: genre || ''                 
+      year: year ? parseInt(year) : null,
+      genre: genre || '',
+      isbn: isbn || '',
+      publisher: publisher || '',
+      language: language || 'English'
     });
 
     res.status(201).json({
@@ -230,7 +287,10 @@ app.post('/api/books', async (req, res) => {
       author,
       description: description || '',
       year: year ? parseInt(year) : null,
-      genre: genre || ''
+      genre: genre || '',
+      isbn: isbn || '',
+      publisher: publisher || '',
+      language: language || 'English'
     });
   } catch (error) {
     console.error(error);
@@ -238,19 +298,20 @@ app.post('/api/books', async (req, res) => {
   }
 });
 
-// PUT update book
-app.put('/api/books/:id', async (req, res) => {
+// PUT update book - PROTECTED
+app.put('/api/books/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, author, description, year, genre } = req.body; 
+    const { title, author, description, year, genre, isbn, publisher, language } = req.body;
 
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid id' });
     }
 
-    if (!title || !author) {
+    // Validation
+    if (!title || !author || !genre || !year) {
       return res.status(400).json({
-        error: 'Title and author are required'
+        error: 'Title, author, genre, and year are required'
       });
     }
 
@@ -263,8 +324,11 @@ app.put('/api/books/:id', async (req, res) => {
           title,
           author,
           description: description || '',
-          year: year ? parseInt(year) : null, 
-          genre: genre || ''                  
+          year: year ? parseInt(year) : null,
+          genre: genre || '',
+          isbn: isbn || '',
+          publisher: publisher || '',
+          language: language || 'English'
         }
       }
     );
@@ -280,9 +344,8 @@ app.put('/api/books/:id', async (req, res) => {
   }
 });
 
-
-// DELETE book
-app.delete('/api/books/:id', async (req, res) => {
+// DELETE book - PROTECTED
+app.delete('/api/books/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -303,8 +366,7 @@ app.delete('/api/books/:id', async (req, res) => {
   }
 });
 
-// CONTACT FORM 
-
+// CONTACT FORM
 app.post('/contact', (req, res) => {
   const { name, email, message } = req.body;
 
@@ -327,7 +389,7 @@ app.post('/contact', (req, res) => {
       </html>
     `);
   }
-  
+
   const contactData = {
     name,
     email,
@@ -378,7 +440,6 @@ app.post('/contact', (req, res) => {
   });
 });
 
-
 // GLOBAL 404
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
@@ -413,4 +474,3 @@ connectDB().then(() => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 });
-

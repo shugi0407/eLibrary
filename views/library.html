@@ -7,92 +7,100 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <header>
+    <nav class="navbar">
+      <div class="logo">eLibrary</div>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/library">Library</a></li>
+        <li><a href="/about">Team</a></li>
+        <li><a href="/contact">Contact Us</a></li>
+      </ul>
+      <a href="/sign-in" class="login-btn">Login</a>
+    </nav>
+  </header>
 
-<header>
-  <nav class="navbar">
-    <div class="logo">eLibrary</div>
-    <ul class="nav-links">
-      <li><a href="/">Home</a></li>
-      <li><a href="/library">Library</a></li>
-      <li><a href="/about">Team</a></li>
-      <li><a href="/contact">Contact Us</a></li>
-    </ul>
-    <a href="#" class="login-btn">Login</a>
-  </nav>
-</header>
+  <section class="hero">
+    <h1>Library</h1>
+    <p>Explore all available books</p>
+  </section>
 
-<section class="hero">
-  <h1>Library</h1>
-  <p>Explore all available books</p>
-</section>
-
-<section class="library-controls">
-  <div class="filter-sort-row">
-  <input type="text" id="filter-author" placeholder="Filter by author">
-  <select id="sort-by">
-    <option value="">Sort by</option>
-    <option value="title">Title</option>
-    <option value="author">Author</option>
-  </select>
-  </div>
-
-<div class="projection-controls">
-  <p>Show only fields:</p>
-
-  <input type="checkbox" id="field-title" value="title" class="field-checkbox" checked>
-  <label for="field-title">Title</label>
-
-  <input type="checkbox" id="field-author" value="author" class="field-checkbox" checked>
-  <label for="field-author">Author</label>
-
-  <input type="checkbox" id="field-year" value="year" class="field-checkbox" checked>
-  <label for="field-year">Year</label>
-
-  <input type="checkbox" id="field-genre" value="genre" class="field-checkbox" checked>
-  <label for="field-genre">Genre</label>
-
-  <input type="checkbox" id="field-description" value="description" class="field-checkbox" checked>
-  <label for="field-description">Description</label>
-</div>
-
-  <button id="apply-filters">Apply</button>
-</section>
-
-
-<section class="library">
-  <div id="books" class="book-grid"></div>
-</section>
-
-<section class="author-section">
-  <h2>Are you an author? Publish your book!</h2>
-  <p>Add, edit or remove your custom books directly from the library.</p>
-
-  <form id="book-form" class="book-form">
-    <input type="hidden" id="book-id">
-
-    <input type="text" id="book-title" placeholder="Book title" required>
-    <input type="text" id="book-author" placeholder="Author" required>
-    <input type="number" id="book-year" placeholder="Year of publication" required>
-    <input type="text" id="book-genre" placeholder="Genre" required>
-    <input type="text" id="book-description" placeholder="Description" required>
-
-    <div class="form-buttons">
-      <button type="submit" id="save-book">Save Book</button>
-      <button type="button" id="delete-book">Delete Book</button>
-      <button type="reset">Clear</button>
+  <section class="library-controls">
+    <div class="filter-sort-row">
+      <input type="text" id="filter-author" placeholder="Filter by author">
+      <select id="sort-by">
+        <option value="">Sort by</option>
+        <option value="title">Title</option>
+        <option value="author">Author</option>
+      </select>
     </div>
-  </form>
-</section>
 
+    <div class="projection-controls">
+      <p>Show only fields:</p>
+      <input type="checkbox" id="field-title" value="title" class="field-checkbox" checked>
+      <label for="field-title">Title</label>
 
-<footer>
-  <p>© 2025 eLibrary</p>
-  <div class="footer-links">
-    <a href="#">Privacy</a>
-    <a href="#">Terms</a>
-  </div>
-</footer>
+      <input type="checkbox" id="field-author" value="author" class="field-checkbox" checked>
+      <label for="field-author">Author</label>
 
-<script src="/library.js"></script>
+      <input type="checkbox" id="field-year" value="year" class="field-checkbox" checked>
+      <label for="field-year">Year</label>
+
+      <input type="checkbox" id="field-genre" value="genre" class="field-checkbox" checked>
+      <label for="field-genre">Genre</label>
+
+      <input type="checkbox" id="field-description" value="description" class="field-checkbox" checked>
+      <label for="field-description">Description</label>
+
+      <input type="checkbox" id="field-isbn" value="isbn" class="field-checkbox" checked>
+      <label for="field-isbn">ISBN</label>
+
+      <input type="checkbox" id="field-publisher" value="publisher" class="field-checkbox" checked>
+      <label for="field-publisher">Publisher</label>
+
+      <input type="checkbox" id="field-language" value="language" class="field-checkbox" checked>
+      <label for="field-language">Language</label>
+    </div>
+
+    <button id="apply-filters">Apply</button>
+  </section>
+
+  <section class="library">
+    <div id="books" class="book-grid"></div>
+  </section>
+
+  <section class="author-section">
+    <h2>Are you an author? Publish your book!</h2>
+    <p>Add, edit or remove your custom books directly from the library.</p>
+
+    <form id="book-form" class="book-form">
+      <input type="hidden" id="book-id">
+
+      <input type="text" id="book-title" placeholder="Book title" required>
+      <input type="text" id="book-author" placeholder="Author" required>
+      <input type="number" id="book-year" placeholder="Year of publication" required>
+      <input type="text" id="book-genre" placeholder="Genre" required>
+      <input type="text" id="book-description" placeholder="Description" required>
+      <input type="text" id="book-isbn" placeholder="ISBN (e.g., 978-0-123456-78-9)">
+      <input type="text" id="book-publisher" placeholder="Publisher">
+      <input type="text" id="book-language" placeholder="Language" value="English">
+
+      <div class="form-buttons">
+        <button type="submit" id="save-book">Save Book</button>
+        <button type="button" id="delete-book">Delete Book</button>
+        <button type="reset">Clear</button>
+      </div>
+    </form>
+  </section>
+
+  <footer>
+    <p>© 2025 eLibrary</p>
+    <div class="footer-links">
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+    </div>
+  </footer>
+
+  <script src="/library.js"></script>
 </body>
 </html>
