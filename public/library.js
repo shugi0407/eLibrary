@@ -21,7 +21,7 @@ function updateUIForAuthStatus() {
   const form = document.getElementById('book-form');
   const deleteBtn = document.getElementById('delete-book');
   const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
-  
+
   if (isAuthenticated) {
     // Show sign-out button
     if (loginBtn) {
@@ -32,6 +32,9 @@ function updateUIForAuthStatus() {
         await signOut();
       };
     }
+
+
+    
     
     // Enable form controls
     if (deleteBtn) deleteBtn.disabled = false;
@@ -47,7 +50,10 @@ function updateUIForAuthStatus() {
     // Disable form controls
     if (deleteBtn) deleteBtn.disabled = true;
     if (submitBtn) submitBtn.disabled = true;
+  
   }
+
+  
 }
 
 // Sign out function
@@ -153,6 +159,9 @@ function addEditListeners() {
     });
   });
 }
+
+
+
 
 // fill the form with book data
 function fillForm(book) {
@@ -321,7 +330,9 @@ deleteBtn.addEventListener('click', async () => {
 });
 
 // Initialize on page load
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
   await checkAuthStatus();
+  updateUIForAuthStatus(); // Call it again after DOM is fully loaded
   await loadBooks();
 });
