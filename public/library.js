@@ -119,8 +119,6 @@ function renderBooks(books) {
       ${book.author ? `<p class="author">Author: ${book.author}</p>` : ''}
       ${book.year ? `<p class="year">Year: ${book.year}</p>` : ''}
       ${book.genre ? `<p class="genre">Genre: ${book.genre}</p>` : ''}
-      ${book.isbn ? `<p class="isbn">ISBN: ${book.isbn}</p>` : ''}
-      ${book.publisher ? `<p class="publisher">Publisher: ${book.publisher}</p>` : ''}
       ${book.language ? `<p class="language">Language: ${book.language}</p>` : ''}
       ${book.description ? `<p class="description">${book.description}</p>` : ''}
 
@@ -162,8 +160,6 @@ function fillForm(book) {
   const yearInput = document.getElementById('book-year');
   const genreInput = document.getElementById('book-genre');
   const descriptionInput = document.getElementById('book-description');
-  const isbnInput = document.getElementById('book-isbn');
-  const publisherInput = document.getElementById('book-publisher');
   const languageInput = document.getElementById('book-language');
 
   if (bookIdInput) bookIdInput.value = book._id || '';
@@ -172,8 +168,6 @@ function fillForm(book) {
   if (yearInput) yearInput.value = book.year || '';
   if (genreInput) genreInput.value = book.genre || '';
   if (descriptionInput) descriptionInput.value = book.description || '';
-  if (isbnInput) isbnInput.value = book.isbn || '';
-  if (publisherInput) publisherInput.value = book.publisher || '';
   if (languageInput) languageInput.value = book.language || 'English';
 }
 
@@ -209,8 +203,6 @@ const authorInput = document.getElementById('book-author');
 const yearInput = document.getElementById('book-year');
 const genreInput = document.getElementById('book-genre');
 const descriptionInput = document.getElementById('book-description');
-const isbnInput = document.getElementById('book-isbn');
-const publisherInput = document.getElementById('book-publisher');
 const languageInput = document.getElementById('book-language');
 const deleteBtn = document.getElementById('delete-book');
 
@@ -232,8 +224,6 @@ form.addEventListener('submit', async (e) => {
     description: descriptionInput.value,
     year: parseInt(yearInput.value),
     genre: genreInput.value,
-    isbn: isbnInput.value,
-    publisher: publisherInput.value,
     language: languageInput.value || 'English'
   };
 

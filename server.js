@@ -5,7 +5,7 @@ const { ObjectId } = require('mongodb');
 const { connectDB, getBooksCollection, getUsersCollection } = require('./database/mongo');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');
+const MongoStore = require('connect-mongo').default;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -71,7 +71,50 @@ app.get('/sign-in', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'sign-in.html'));
 });
 
+app.get('/sign-up', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'sign-up.html'));
+});
+
+
 // AUTH API ROUTES
+
+// POST /api/sign-up - Register new user
+app.post('/api/sign-up', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    // Validation
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const users = getUsersCollection();
+
+    // Check if user already exists
+    const existingUser = await users.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ error: "User already exists" });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Save user to DB
+    await users.insertOne({
+      name,
+      email,
+      password: hashedPassword,
+      createdAt: new Date()
+    });
+
+    res.status(201).json({ message: "User registered successfully" });
+
+  } catch (error) {
+    console.error('Sign-up error:', error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 
 // POST /api/sign-in - Creates session
 app.post('/api/sign-in', async (req, res) => {
