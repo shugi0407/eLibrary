@@ -114,26 +114,26 @@ function renderBooks(books) {
         return;
     }
 
-    booksContainer.innerHTML = books
-        .map(book =>
-            `<div class="book-card">
-                ${book.title ? `<h3>${book.title}</h3>` : ''}
-                ${book.author ? `<p class="author">Author: ${book.author}</p>` : ''}
-                ${book.year ? `<p class="year">Year: ${book.year}</p>` : ''}
-                ${book.genre ? `<p class="genre">Genre: ${book.genre}</p>` : ''}
-                ${book.isbn ? `<p class="isbn">ISBN: ${book.isbn}</p>` : ''}
-                ${book.publisher ? `<p class="publisher">Publisher: ${book.publisher}</p>` : ''}
-                ${book.language ? `<p class="language">Language: ${book.language}</p>` : ''}
-                ${book.description ? `<p class="description">${book.description}</p>` : ''}
-                
-                ${isAuthenticated ? `
-                    <button class="edit-btn" data-id="${book._id}">
-                        Edit
-                    </button>
-                ` : '<p style="color: #999; font-size: 12px;">Login to edit</p>'}
-            </div>`
-        )
-        .join('');
+  booksContainer.innerHTML = books
+  .map(book => `
+    <div class="book-card">
+      ${book.title ? `<h3>${book.title}</h3>` : ''}
+      ${book.author ? `<p class="author">Author: ${book.author}</p>` : ''}
+      ${book.year ? `<p class="year">Year: ${book.year}</p>` : ''}
+      ${book.genre ? `<p class="genre">Genre: ${book.genre}</p>` : ''}
+      ${book.isbn ? `<p class="isbn">ISBN: ${book.isbn}</p>` : ''}
+      ${book.publisher ? `<p class="publisher">Publisher: ${book.publisher}</p>` : ''}
+      ${book.language ? `<p class="language">Language: ${book.language}</p>` : ''}
+      ${book.description ? `<p class="description">${book.description}</p>` : ''}
+
+      ${isAuthenticated ? `
+        <button class="edit-btn" data-id="${book._id}">
+          Edit
+        </button>
+      ` : '<p style="color: #999; font-size: 12px;">Login to edit</p>'}
+    </div>
+  `)
+  .join('');
 
     // add listeners after render
     addEditListeners();
@@ -155,25 +155,25 @@ function addEditListeners() {
 
 // fill the form with book data
 function fillForm(book) {
-    const bookIdInput = document.getElementById('book-id');
-    const titleInput = document.getElementById('book-title');
-    const authorInput = document.getElementById('book-author');
-    const yearInput = document.getElementById('book-year');
-    const genreInput = document.getElementById('book-genre');
-    const descriptionInput = document.getElementById('book-description');
-    const isbnInput = document.getElementById('book-isbn');
-    const publisherInput = document.getElementById('book-publisher');
-    const languageInput = document.getElementById('book-language');
+  const bookIdInput = document.getElementById('book-id');
+  const titleInput = document.getElementById('book-title');
+  const authorInput = document.getElementById('book-author');
+  const yearInput = document.getElementById('book-year');
+  const genreInput = document.getElementById('book-genre');
+  const descriptionInput = document.getElementById('book-description');
+  const isbnInput = document.getElementById('book-isbn');
+  const publisherInput = document.getElementById('book-publisher');
+  const languageInput = document.getElementById('book-language');
 
-    if (bookIdInput) bookIdInput.value = book._id || '';
-    if (titleInput) titleInput.value = book.title || '';
-    if (authorInput) authorInput.value = book.author || '';
-    if (yearInput) yearInput.value = book.year || '';
-    if (genreInput) genreInput.value = book.genre || '';
-    if (descriptionInput) descriptionInput.value = book.description || '';
-    if (isbnInput) isbnInput.value = book.isbn || '';
-    if (publisherInput) publisherInput.value = book.publisher || '';
-    if (languageInput) languageInput.value = book.language || 'English';
+  if (bookIdInput) bookIdInput.value = book._id || '';
+  if (titleInput) titleInput.value = book.title || '';
+  if (authorInput) authorInput.value = book.author || '';
+  if (yearInput) yearInput.value = book.year || '';
+  if (genreInput) genreInput.value = book.genre || '';
+  if (descriptionInput) descriptionInput.value = book.description || '';
+  if (isbnInput) isbnInput.value = book.isbn || '';
+  if (publisherInput) publisherInput.value = book.publisher || '';
+  if (languageInput) languageInput.value = book.language || 'English';
 }
 
 // get filter and sort elements
@@ -208,8 +208,6 @@ const authorInput = document.getElementById('book-author');
 const yearInput = document.getElementById('book-year');
 const genreInput = document.getElementById('book-genre');
 const descriptionInput = document.getElementById('book-description');
-const isbnInput = document.getElementById('book-isbn');
-const publisherInput = document.getElementById('book-publisher');
 const languageInput = document.getElementById('book-language');
 const deleteBtn = document.getElementById('delete-book');
 
@@ -223,17 +221,18 @@ form.addEventListener('submit', async (e) => {
         return;
     }
 
-    const id = bookIdInput.value;
-    const bookData = {
-        title: titleInput.value,
-        author: authorInput.value,
-        description: descriptionInput.value,
-        year: parseInt(yearInput.value),
-        genre: genreInput.value,
-        isbn: isbnInput.value,
-        publisher: publisherInput.value,
-        language: languageInput.value || 'English'
-    };
+  const id = bookIdInput.value;
+
+  const bookData = {
+    title: titleInput.value,
+    author: authorInput.value,
+    description: descriptionInput.value,
+    year: parseInt(yearInput.value),
+    genre: genreInput.value,
+    isbn: isbnInput.value,
+    publisher: publisherInput.value,
+    language: languageInput.value || 'English'
+  };
 
     try {
         let response;

@@ -560,7 +560,7 @@ footer {
   margin-bottom: 10px;
 }
 
-.book-card .description, .year, .genre {
+.book-card .description, .year, .genre, .isbn, .publisher, .language {
   font-size: 14px;
   color: #555;
   line-height: 1.5;
