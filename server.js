@@ -1,8 +1,12 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const cors = require('cors');
+
 const { ObjectId } = require('mongodb');
-const { connectDB, getBooksCollection, getUsersCollection } = require('./database/mongo');
+const { connectDB, getBooksCollection, getUsersCollection } =
+  require('./database/mongo');
+
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
@@ -10,47 +14,93 @@ const MongoStore = require('connect-mongo');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// MIDDLEWARE
+/* ======================
+   MIDDLEWARE
+====================== */
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Session middleware - MUST be before routes
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/elibrary',
-    touchAfter: 24 * 3600 // lazy session update (24 hours)
-  }),
-  cookie: {
-    httpOnly: true, // Required: prevents client-side JS from accessing cookies
-    secure: process.env.NODE_ENV === 'production', // Recommended: use HTTPS in production
-    maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
-  }
-}));
+/* CORS (needed for credentials: include) */
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+  })
+);
 
-// Custom logger middleware
+/* ======================
+   SESSION CONFIG
+====================== */
+
+app.use(
+  session({
+    name: 'elibrary.sid',
+
+    secret: process.env.SESSION_SECRET || 'change-this-secret',
+
+    resave: false,
+
+    saveUninitialized: false,
+
+    store: MongoStore.create({
+      mongoUrl:
+        process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/elibrary',
+      collectionName: 'sessions'
+    }),
+
+    cookie: {
+      httpOnly: true, // security
+      secure: process.env.NODE_ENV === 'production', // HTTPS in prod
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
+    }
+  })
+);
+
+/* ======================
+   LOGGER
+====================== */
+
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url} - User: ${req.session.userId || 'Guest'}`);
+  console.log(
+    `${req.method} ${req.url} | User: ${
+      req.session.userId || 'Guest'
+    }`
+  );
   next();
 });
 
-// Static files
+/* ======================
+   STATIC FILES
+====================== */
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// AUTHENTICATION MIDDLEWARE
+/* ======================
+   AUTH MIDDLEWARE
+====================== */
+
 function requireAuth(req, res, next) {
+
+  console.log('CHECK AUTH:', req.session);
+
   if (!req.session.userId) {
-    return res.status(401).json({ 
-      error: 'Unauthorized',
-      message: 'You must be logged in to perform this action' 
+    console.log('BLOCKED');
+    return res.status(401).json({
+      error: 'Unauthorized'
     });
   }
+
+  console.log('ALLOWED');
   next();
 }
 
-// HTML ROUTES 
+
+/* ======================
+   HTML ROUTES
+====================== */
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
@@ -71,247 +121,232 @@ app.get('/sign-in', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'sign-in.html'));
 });
 
-// AUTH API ROUTES
+/* ======================
+   AUTH API
+====================== */
 
-// POST /api/sign-in - Creates session
+// LOGIN
 app.post('/api/sign-in', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
     if (!email || !password) {
-      return res.status(400).json({ error: "Invalid credentials" });
+      return res
+        .status(400)
+        .json({ error: 'Invalid credentials' });
     }
 
-    const collection = getUsersCollection();
-    const user = await collection.findOne({ email });
+    const users = getUsersCollection();
 
-    // Generic error message for security
+    const user = await users.findOne({ email });
+
     if (!user) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res
+        .status(401)
+        .json({ error: 'Invalid credentials' });
     }
 
     const match = await bcrypt.compare(password, user.password);
+
     if (!match) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res
+        .status(401)
+        .json({ error: 'Invalid credentials' });
     }
 
-    // Create session
+    /* Create session */
     req.session.userId = user._id.toString();
     req.session.email = user.email;
 
     res.status(200).json({
-      message: "Sign-in successful",
+      message: 'Login successful',
       user: {
         email: user.email
       }
     });
-  } catch (error) {
-    console.error('Sign-in error:', error);
-    res.status(500).json({ error: "Server error" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-// POST /api/sign-out - Destroys session
+// LOGOUT
 app.post('/api/sign-out', (req, res) => {
-  req.session.destroy((err) => {
+  req.session.destroy(err => {
     if (err) {
-      return res.status(500).json({ error: 'Failed to sign out' });
+      return res
+        .status(500)
+        .json({ error: 'Logout failed' });
     }
-    res.clearCookie('connect.sid'); // Clear session cookie
-    res.status(200).json({ message: 'Signed out successfully' });
+
+    res.clearCookie('elibrary.sid');
+
+    res.status(200).json({
+      message: 'Logged out'
+    });
   });
 });
 
-// GET /api/auth/status - Check if user is authenticated
+// AUTH STATUS
 app.get('/api/auth/status', (req, res) => {
   if (req.session.userId) {
-    res.status(200).json({ 
+    return res.status(200).json({
       authenticated: true,
-      email: req.session.email 
+      email: req.session.email
     });
-  } else {
-    res.status(200).json({ authenticated: false });
-  }
-});
-
-// SEARCH ROUTE
-app.get('/search', (req, res) => {
-  const query = req.query.q;
-
-  if (!query) {
-    return res.status(400).send(`
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <title>Error 400</title>
-        <link rel="stylesheet" href="/style.css">
-      </head>
-      <body>
-        <div class="container">
-          <h2>Error 400</h2>
-          <p>Missing required query parameter <strong>"q"</strong>.</p>
-          <a href="/" class="btn">Go back</a>
-        </div>
-      </body>
-      </html>
-    `);
   }
 
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>Search Results</title>
-      <link rel="stylesheet" href="/style.css">
-    </head>
-    <body>
-      <div class="container">
-        <h2>Search Results</h2>
-        <p>You searched for: <strong>${query}</strong></p>
-        <a href="/" class="btn">New search</a>
-      </div>
-    </body>
-    </html>
-  `);
-});
-
-// API INFO 
-app.get('/api/info', (req, res) => {
   res.status(200).json({
-    project: 'E-Library',
-    description: 'REST API for managing books (MongoDB)',
-    endpoints: {
-      getAll: 'GET /api/books',
-      getById: 'GET /api/books/:id',
-      create: 'POST /api/books (requires auth)',
-      update: 'PUT /api/books/:id (requires auth)',
-      delete: 'DELETE /api/books/:id (requires auth)'
-    }
+    authenticated: false
   });
 });
 
-// API ROUTES (CRUD)
+/* ======================
+   BOOKS API (CRUD)
+====================== */
 
-// GET all books (filtering, sorting, projection) - PUBLIC
+// GET ALL (PUBLIC)
 app.get('/api/books', async (req, res) => {
   try {
     const collection = getBooksCollection();
 
     const { sort, fields, ...filters } = req.query;
 
-    // FILTER
+    /* Filters */
     const query = {};
+
     for (const [key, value] of Object.entries(filters)) {
       query[key] = { $regex: value, $options: 'i' };
     }
 
-    // SORT
+    /* Sorting */
     let sortOptions = {};
+
     if (sort) {
       if (sort.startsWith('-')) {
-        sortOptions[sort.slice(1)] = -1; // DESC
+        sortOptions[sort.slice(1)] = -1;
       } else {
-        sortOptions[sort] = 1; // ASC
+        sortOptions[sort] = 1;
       }
     }
 
-    // PROJECTION
+    /* Projection */
     let projection = {};
+
     if (fields) {
-      fields.split(',').forEach(field => {
-        projection[field] = 1;
+      fields.split(',').forEach(f => {
+        projection[f] = 1;
       });
     }
 
-    const books = await collection.find(query).sort(sortOptions).project(projection).toArray();
+    const books = await collection
+      .find(query)
+      .sort(sortOptions)
+      .project(projection)
+      .toArray();
+
     res.status(200).json(books);
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// GET book by id - PUBLIC
+// GET BY ID (PUBLIC)
 app.get('/api/books/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid id' });
+      return res.status(400).json({ error: 'Invalid ID' });
     }
 
     const collection = getBooksCollection();
-    const book = await collection.findOne({ _id: new ObjectId(id) });
+
+    const book = await collection.findOne({
+      _id: new ObjectId(id)
+    });
 
     if (!book) {
-      return res.status(404).json({ error: 'Book not found' });
+      return res.status(404).json({
+        error: 'Book not found'
+      });
     }
 
     res.status(200).json(book);
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// POST create book - PROTECTED
+// CREATE (PROTECTED)
 app.post('/api/books', requireAuth, async (req, res) => {
   try {
-    const { title, author, description, year, genre, isbn, publisher, language } = req.body;
+    const {
+      title,
+      author,
+      description,
+      year,
+      genre,
+      isbn,
+      publisher,
+      language
+    } = req.body;
 
-    // Validation
     if (!title || !author || !genre || !year) {
       return res.status(400).json({
-        error: 'Title, author, genre, and year are required'
+        error: 'Missing required fields'
       });
     }
 
     const collection = getBooksCollection();
 
-    const result = await collection.insertOne({
+    const book = {
       title,
       author,
       description: description || '',
-      year: year ? parseInt(year) : null,
-      genre: genre || '',
+      year: parseInt(year),
+      genre,
       isbn: isbn || '',
       publisher: publisher || '',
       language: language || 'English'
-    });
+    };
+
+    const result = await collection.insertOne(book);
 
     res.status(201).json({
       _id: result.insertedId,
-      title,
-      author,
-      description: description || '',
-      year: year ? parseInt(year) : null,
-      genre: genre || '',
-      isbn: isbn || '',
-      publisher: publisher || '',
-      language: language || 'English'
+      ...book
     });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// PUT update book - PROTECTED
+// UPDATE (PROTECTED)
 app.put('/api/books/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, author, description, year, genre, isbn, publisher, language } = req.body;
 
     if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid id' });
+      return res.status(400).json({ error: 'Invalid ID' });
     }
 
-    // Validation
+    const {
+      title,
+      author,
+      description,
+      year,
+      genre,
+      isbn,
+      publisher,
+      language
+    } = req.body;
+
     if (!title || !author || !genre || !year) {
       return res.status(400).json({
-        error: 'Title, author, genre, and year are required'
+        error: 'Missing required fields'
       });
     }
 
@@ -324,8 +359,8 @@ app.put('/api/books/:id', requireAuth, async (req, res) => {
           title,
           author,
           description: description || '',
-          year: year ? parseInt(year) : null,
-          genre: genre || '',
+          year: parseInt(year),
+          genre,
           isbn: isbn || '',
           publisher: publisher || '',
           language: language || 'English'
@@ -334,143 +369,71 @@ app.put('/api/books/:id', requireAuth, async (req, res) => {
     );
 
     if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Book not found' });
+      return res
+        .status(404)
+        .json({ error: 'Book not found' });
     }
 
-    res.status(200).json({ message: 'Book updated successfully' });
-  } catch (error) {
-    console.error(error);
+    res.status(200).json({
+      message: 'Updated'
+    });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// DELETE book - PROTECTED
+// DELETE (PROTECTED)
 app.delete('/api/books/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid id' });
+      return res.status(400).json({ error: 'Invalid ID' });
     }
 
     const collection = getBooksCollection();
-    const result = await collection.deleteOne({ _id: new ObjectId(id) });
+
+    const result = await collection.deleteOne({
+      _id: new ObjectId(id)
+    });
 
     if (result.deletedCount === 0) {
-      return res.status(404).json({ error: 'Book not found' });
+      return res
+        .status(404)
+        .json({ error: 'Book not found' });
     }
 
-    res.status(200).json({ message: 'Book deleted successfully' });
-  } catch (error) {
+    res.status(200).json({
+      message: 'Deleted'
+    });
+  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// CONTACT FORM
-app.post('/contact', (req, res) => {
-  const { name, email, message } = req.body;
+/* ======================
+   404 HANDLER
+====================== */
 
-  if (!name || !email || !message) {
-    return res.status(400).send(`
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <title>Error</title>
-        <link rel="stylesheet" href="/style.css">
-      </head>
-      <body>
-        <div class="container">
-          <h2>Error: Missing required fields</h2>
-          <p>All fields (name, email, message) are required.</p>
-          <a href="/contact" class="btn">Go back</a>
-        </div>
-      </body>
-      </html>
-    `);
-  }
-
-  const contactData = {
-    name,
-    email,
-    message,
-    date: new Date().toISOString()
-  };
-
-  const filePath = path.join(__dirname, 'contacts.json');
-
-  fs.readFile(filePath, 'utf8', (err, data) => {
-    let contacts = [];
-
-    if (!err && data) {
-      try {
-        contacts = JSON.parse(data);
-      } catch (e) {
-        console.error('Error parsing JSON:', e);
-      }
-    }
-
-    contacts.push(contactData);
-
-    fs.writeFile(filePath, JSON.stringify(contacts, null, 2), (err) => {
-      if (err) {
-        console.error('Error saving contact:', err);
-        return res.status(500).send('Internal Server Error');
-      }
-
-      res.send(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <title>Thank you</title>
-          <link rel="stylesheet" href="/style.css">
-        </head>
-        <body>
-          <div class="container">
-            <h2>Thanks, ${name}! Your message has been received.</h2>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Message:</strong> ${message}</p>
-            <a href="/contact" class="btn">Go back</a>
-          </div>
-        </body>
-        </html>
-      `);
-    });
-  });
-});
-
-// GLOBAL 404
 app.use((req, res) => {
-  if (req.path.startsWith('/api/')) {
+  if (req.path.startsWith('/api')) {
     return res.status(404).json({
-      error: 'Not Found',
-      message: 'API endpoint does not exist'
+      error: 'Not Found'
     });
   }
 
-  res.status(404).send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>404 — Page Not Found</title>
-      <link rel="stylesheet" href="/style.css">
-    </head>
-    <body>
-      <div class="container">
-        <h2>404 — Page Not Found</h2>
-        <p>Sorry, the page you are looking for doesn't exist.</p>
-        <a href="/" class="btn">Go to Home</a>
-      </div>
-    </body>
-    </html>
-  `);
+  res.status(404).sendFile(
+    path.join(__dirname, 'views', '404.html')
+  );
 });
 
-// START SERVER
+/* ======================
+   START SERVER
+====================== */
+
 connectDB().then(() => {
   app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 });
