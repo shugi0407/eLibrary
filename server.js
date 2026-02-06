@@ -9,7 +9,7 @@ const { connectDB, getBooksCollection, getUsersCollection } =
 
 const bcrypt = require('bcrypt');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');
+const MongoStore = require('connect-mongo').default;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,7 +43,7 @@ app.use(
 
     saveUninitialized: false,
 
-    store: MongoStore.create({
+    store: MongoStore({
       mongoUrl:
         process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/elibrary',
       collectionName: 'sessions'
