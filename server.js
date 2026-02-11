@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -14,18 +15,18 @@ const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Session middleware - MUST be before routes
+// Session middleware 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/elibrary',
+    mongoUrl: process.env.MONGO_URI,
     touchAfter: 24 * 3600 // lazy session update (24 hours)
   }),
   cookie: {
-    httpOnly: true, // Required: prevents client-side JS from accessing cookies
-    secure: process.env.NODE_ENV === 'production', // Recommended: use HTTPS in production
+    httpOnly: true, //  prevents client-side JS from accessing cookies
+    secure: process.env.NODE_ENV === 'production', // use HTTPS in production
     maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
   }
 }));
@@ -49,6 +50,12 @@ function requireAuth(req, res, next) {
   }
   next();
 }
+
+async function getCurrentUser(req) {
+  const users = getUsersCollection();
+  return await users.findOne({ _id: new ObjectId(req.session.userId) });
+}
+
 
 // HTML ROUTES 
 app.get('/', (req, res) => {
@@ -104,6 +111,7 @@ app.post('/api/sign-up', async (req, res) => {
       name,
       email,
       password: hashedPassword,
+      role: 'user',  
       createdAt: new Date()
     });
 
@@ -167,16 +175,24 @@ app.post('/api/sign-out', (req, res) => {
 });
 
 // GET /api/auth/status - Check if user is authenticated
-app.get('/api/auth/status', (req, res) => {
+app.get('/api/auth/status', async (req, res) => {
   if (req.session.userId) {
+    const user = await getCurrentUser(req); 
+    if (!user) {
+      return res.status(401).json({ authenticated: false });
+    }
+
     res.status(200).json({ 
       authenticated: true,
-      email: req.session.email 
+      email: user.email,
+      role: user.role,
+      userId: user._id.toString() 
     });
   } else {
     res.status(200).json({ authenticated: false });
   }
 });
+
 
 // SEARCH ROUTE
 app.get('/search', (req, res) => {
@@ -319,9 +335,8 @@ app.post('/api/books', requireAuth, async (req, res) => {
       description: description || '',
       year: year ? parseInt(year) : null,
       genre: genre || '',
-      isbn: isbn || '',
-      publisher: publisher || '',
-      language: language || 'English'
+      language: language || 'English',
+      ownerId: new ObjectId(req.session.userId)
     });
 
     res.status(201).json({
@@ -331,8 +346,6 @@ app.post('/api/books', requireAuth, async (req, res) => {
       description: description || '',
       year: year ? parseInt(year) : null,
       genre: genre || '',
-      isbn: isbn || '',
-      publisher: publisher || '',
       language: language || 'English'
     });
   } catch (error) {
@@ -360,6 +373,22 @@ app.put('/api/books/:id', requireAuth, async (req, res) => {
 
     const collection = getBooksCollection();
 
+    const book = await collection.findOne({ _id: new ObjectId(id) });
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+    
+    const user = await getCurrentUser(req);
+    
+    const isOwner = book.ownerId && book.ownerId.toString() === req.session.userId;
+    
+    if (!isOwner && user.role !== 'admin') {
+      return res.status(403).json({
+        error: 'You can modify only your own books'
+      });
+    }
+
+
     const result = await collection.updateOne(
       { _id: new ObjectId(id) },
       {
@@ -369,8 +398,6 @@ app.put('/api/books/:id', requireAuth, async (req, res) => {
           description: description || '',
           year: year ? parseInt(year) : null,
           genre: genre || '',
-          isbn: isbn || '',
-          publisher: publisher || '',
           language: language || 'English'
         }
       }
@@ -397,6 +424,24 @@ app.delete('/api/books/:id', requireAuth, async (req, res) => {
     }
 
     const collection = getBooksCollection();
+
+    const book = await collection.findOne({ _id: new ObjectId(id) });
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+    
+    const user = await getCurrentUser(req);
+    
+    const isOwner = book.ownerId && book.ownerId.toString() === req.session.userId;
+    
+    if (!isOwner && user.role !== 'admin') {
+      return res.status(403).json({
+        error: 'You can delete only your own books'
+       });
+      }
+
+
+    
     const result = await collection.deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {

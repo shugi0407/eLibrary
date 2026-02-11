@@ -1,19 +1,28 @@
 // Authentication state
 let isAuthenticated = false;
 
+let userRole = null;
+let currentUserId = null;
+
+
 // Check authentication status on page load
 async function checkAuthStatus() {
   try {
     const response = await fetch('/api/auth/status');
     const data = await response.json();
+
     isAuthenticated = data.authenticated;
-    
+    userRole = data.role || null;   
+    currentUserId = data.userId || null;
+
     updateUIForAuthStatus();
   } catch (error) {
     console.error('Error checking auth status:', error);
     isAuthenticated = false;
+    userRole = null;
   }
 }
+
 
 // Update UI based on authentication status
 function updateUIForAuthStatus() {
@@ -32,6 +41,13 @@ function updateUIForAuthStatus() {
         await signOut();
       };
     }
+
+    // Show role badge
+    const header = document.querySelector('.logo'); 
+    if (header && userRole) {
+      header.innerHTML += ` <span style="color: green; font-size:14px;">(${userRole.toUpperCase()})</span>`;
+  }
+
     
     // Enable form controls
     if (deleteBtn) deleteBtn.disabled = false;
@@ -107,32 +123,86 @@ async function loadBooks({ sort, fields, filters } = {}) {
 
 // function to render books in the container
 function renderBooks(books) {
-  if (!books.length) {
+  if (!books || !books.length) {
     booksContainer.innerHTML = '<p>No books found.</p>';
     return;
   }
 
   booksContainer.innerHTML = books
-  .map(book => `
-    <div class="book-card">
-      ${book.title ? `<h3>${book.title}</h3>` : ''}
-      ${book.author ? `<p class="author">Author: ${book.author}</p>` : ''}
-      ${book.year ? `<p class="year">Year: ${book.year}</p>` : ''}
-      ${book.genre ? `<p class="genre">Genre: ${book.genre}</p>` : ''}
-      ${book.language ? `<p class="language">Language: ${book.language}</p>` : ''}
-      ${book.description ? `<p class="description">${book.description}</p>` : ''}
+    .map(book => {
+      const isOwner = book.ownerId && currentUserId &&
+                      book.ownerId.toString() === currentUserId.toString();
+      const canEdit = isAuthenticated && (userRole === 'admin' || isOwner);
 
-      ${isAuthenticated ? `
-        <button class="edit-btn" data-id="${book._id}">
-          Edit
-        </button>
-      ` : '<p style="color: #999; font-size: 12px;">Login to edit</p>'}
-    </div>
-  `)
-  .join('');
+    
+      let editMessage = '';
+      if (!isAuthenticated) {
+        editMessage = '<p style="color: #999; font-size: 12px;">Login to edit your books</p>';
+      } else if (!canEdit) {
+        editMessage = '<p style="color: #999; font-size: 12px;">You can\'t edit this book</p>';
+      }
+
+
+      let rightsMessage = '';
+      if (canEdit) {
+        if (userRole === 'admin') {
+          rightsMessage = '<span style="color:red; font-size:12px;">Admin can edit all books</span>';
+        } else {
+          rightsMessage = '<span style="color:gray; font-size:12px;">You can edit this book</span>';
+        }
+      }
+
+      return `
+        <div class="book-card">
+          ${book.title ? `<h3>${book.title}</h3>` : ''}
+          ${book.author ? `<p class="author">Author: ${book.author}</p>` : ''}
+          ${book.year ? `<p class="year">Year: ${book.year}</p>` : ''}
+          ${book.genre ? `<p class="genre">Genre: ${book.genre}</p>` : ''}
+          ${book.language ? `<p class="language">Language: ${book.language}</p>` : ''}
+          ${book.description ? `<p class="description">${book.description}</p>` : ''}
+          
+          ${canEdit ? `<button class="edit-btn" data-id="${book._id}">Edit</button>${rightsMessage}` : editMessage}
+        </div>
+      `;
+    })
+    .join('');
 
   // add listeners after render
   addEditListeners();
+}
+
+
+
+
+// fill the form with book data
+function fillForm(book) {
+  const bookIdInput = document.getElementById('book-id');
+  const titleInput = document.getElementById('book-title');
+  const authorInput = document.getElementById('book-author');
+  const yearInput = document.getElementById('book-year');
+  const genreInput = document.getElementById('book-genre');
+  const descriptionInput = document.getElementById('book-description');
+  const languageInput = document.getElementById('book-language');
+  const clearBtn = document.getElementById('clear-form');
+
+  bookIdInput.value = book._id || '';
+  titleInput.value = book.title || '';
+  authorInput.value = book.author || '';
+  yearInput.value = book.year || '';
+  genreInput.value = book.genre || '';
+  descriptionInput.value = book.description || '';
+  languageInput.value = book.language || 'English';
+}
+
+
+// clear button 
+const clearBtn = document.getElementById('clear-form');
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    form.reset();           
+    bookIdInput.value = ''; 
+    deleteBtn.disabled = true;
+  });
 }
 
 // add click listeners to edit buttons
@@ -152,24 +222,6 @@ function addEditListeners() {
   });
 }
 
-// fill the form with book data
-function fillForm(book) {
-  const bookIdInput = document.getElementById('book-id');
-  const titleInput = document.getElementById('book-title');
-  const authorInput = document.getElementById('book-author');
-  const yearInput = document.getElementById('book-year');
-  const genreInput = document.getElementById('book-genre');
-  const descriptionInput = document.getElementById('book-description');
-  const languageInput = document.getElementById('book-language');
-
-  if (bookIdInput) bookIdInput.value = book._id || '';
-  if (titleInput) titleInput.value = book.title || '';
-  if (authorInput) authorInput.value = book.author || '';
-  if (yearInput) yearInput.value = book.year || '';
-  if (genreInput) genreInput.value = book.genre || '';
-  if (descriptionInput) descriptionInput.value = book.description || '';
-  if (languageInput) languageInput.value = book.language || 'English';
-}
 
 // get filter and sort elements
 const filterAuthorInput = document.getElementById('filter-author');
@@ -206,6 +258,12 @@ const descriptionInput = document.getElementById('book-description');
 const languageInput = document.getElementById('book-language');
 const deleteBtn = document.getElementById('delete-book');
 
+async function checkIfOwner(bookId) {
+  const res = await fetch(`/api/books/${bookId}`);
+  const book = await res.json();
+  return book.ownerId.toString() === currentUserId.toString();
+}
+
 // create or update book
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -229,27 +287,25 @@ form.addEventListener('submit', async (e) => {
 
   try {
     let response;
-    
+
     if (id) {
-      // update existing book
+      const canEdit = (userRole === 'admin' || await checkIfOwner(id));
+      if (!canEdit) {
+        alert("You don't have permission to edit this book");
+        return;
+      }
+
       response = await fetch(`/api/books/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookData)
       });
     } else {
-      // create new book
       response = await fetch('/api/books', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bookData)
       });
-    }
-
-    if (response.status === 401) {
-      alert('Session expired. Please login again.');
-      window.location.href = '/sign-in';
-      return;
     }
 
     if (!response.ok) {
@@ -259,12 +315,15 @@ form.addEventListener('submit', async (e) => {
 
     alert(id ? 'Book updated successfully!' : 'Book created successfully!');
     form.reset();
-    loadBooks(); // reload books after change
+    bookIdInput.value = '';
+    deleteBtn.disabled = true;
+    loadBooks(); 
   } catch (error) {
     console.error('Error:', error);
     alert(error.message || 'Failed to save book');
   }
 });
+
 
 // delete book by id
 deleteBtn.addEventListener('click', async () => {

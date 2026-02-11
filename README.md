@@ -63,7 +63,14 @@ All CRUD operations are implemented and accessible through the web interface.
 
 ---
 
-## 5. Production Environment (Render)
+## 5. New Features Added
+
+- User authentication and role-based access (admin and regular users)
+- Conditional rendering of book actions based on ownership and user role
+- Form clear functionality properly resets inputs and disables delete button
+- Enhanced UI feedback: messages for edit permissions and login status
+
+## 6. Production Environment (Render)
 In production, environment variables are configured via the Render dashboard:
 MONGO_URI
 DB_NAME
@@ -72,5 +79,5 @@ Hardcoded secrets are not used in the source code.
 
 ---
 
-## 6. Deployed Application
+## 7. Deployed Application
 Public URL: https://elibrary-n1ps.onrender.com
